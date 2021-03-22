@@ -1,0 +1,142 @@
+grammar;
+
+
+pub file: () = {
+    function_def,
+}
+
+
+boolean: () = {
+    "true",
+    "false",
+};
+
+minus : () = {
+    "-",
+};
+
+not : () = {
+    "not",
+};
+
+minus_dot : () = {
+    "-.",
+};
+
+equal : () = {
+    "=",
+};
+
+operator : () = { 
+    "+.",
+    "+",
+    "*.",
+    "/.",
+    "<>",
+    "<=",
+    ">=",
+    "<",
+    ">",
+};
+
+integer : () = {
+    r"\d+",
+}
+
+floating : () = {
+    r"\d+ (\. \d*)? ([eE] [+-]? \d+)?",
+}
+
+identifier : () = {
+    r"([_a-z]+)([0-9a-zA-z_]*)",
+}
+
+simple_exp : () = {
+    "(" exp ")",
+    "(" ")",
+    boolean,
+    integer,
+    floating,
+    identifier,
+    simple_exp "." "(" exp ")",
+}
+
+exp : () = {
+    simple_exp,
+    not_exp,
+    minus_exp,
+    binary_minus_exp,
+    minus_dot_exp,
+    actual_args_exp,
+    elems,
+    "if" exp "then" exp "else" exp,
+    "let" "(" pat ")" equal exp "in" exp
+    "let rec" function_def "in" exp,
+    simple_exp ".(" exp ")" "<-" exp,
+    exp_list,
+    "Array.create" simple_exp simple_exp,
+}
+
+not_exp: () = {
+    not exp,
+}
+ 
+minus_exp: () = {
+    minus exp,
+}
+
+binary_minus_exp: () = {
+    exp minus exp,
+}
+
+binary_op_exp: () = {
+    exp operator exp,
+}
+
+minus_dot_exp: () = {
+    exp "-." exp,
+}
+
+actual_args_exp: () = {
+    exp actual_args,
+}
+
+exp_list: () = {
+    exp ";" exp,
+}
+
+function_def : () = { 
+    identifier formal_args equal exp,
+}
+
+
+formal_args : () = { 
+    identifier formal_args,
+    identifier,
+}
+
+actual_args : () = {
+    actual_args simple_exp,
+    simple_exp, 
+}
+
+elems : () = {
+    elems "," exp,
+    exp "," exp,
+}
+
+
+pat : () = {
+    pat "," identifier,
+    identifier "," identifier,
+}
+
+
+
+
+
+
+
+
+
+
