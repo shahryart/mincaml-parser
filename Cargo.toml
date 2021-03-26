@@ -1,11 +1,14 @@
 [package]
-name = "mincaml-tool"
+name = "mincaml-parser"
 version = "0.1.0"
 authors = ["Shahryar Tariq <st876@cornell.edu>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[build-dependencies] # <-- We added this and everything after!
+lalrpop = "0.19.5"
+
 [dependencies]
-pest = "2.0"
-pest_derive = "2.0"
+lalrpop-util = "0.19.5"
+regex = "1"

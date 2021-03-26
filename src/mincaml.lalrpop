@@ -2,134 +2,108 @@ grammar;
 
 
 pub file: () = {
-    function_def,
+    FunctionDef,
 }
 
 
-boolean: () = {
+Boolean: () = {
     "true",
     "false",
 };
 
-minus : () = {
-    "-",
-};
 
-not : () = {
-    "not",
-};
-
-minus_dot : () = {
-    "-.",
-};
-
-equal : () = {
-    "=",
-};
-
-operator : () = { 
-    "+.",
-    "+",
-    "*.",
-    "/.",
-    "<>",
-    "<=",
-    ">=",
-    "<",
-    ">",
-};
-
-integer : () = {
+Number : () = {
+    r"\d+(\.\d+)([eE][+-]?\d+)?",
     r"\d+",
 }
 
-floating : () = {
-    r"\d+ (\. \d*)? ([eE] [+-]? \d+)?",
-}
-
-identifier : () = {
+Identifier : () = {
     r"([_a-z]+)([0-9a-zA-z_]*)",
 }
 
-simple_exp : () = {
-    "(" exp ")",
+SimpleExp : () = {
+    "(" Exp ")",
     "(" ")",
-    boolean,
-    integer,
-    floating,
-    identifier,
-    simple_exp "." "(" exp ")",
+    Boolean,
+    Number,
+    Identifier,
+    SimpleExp "." "(" Exp ")",
 }
 
-exp : () = {
-    simple_exp,
-    not_exp,
-    minus_exp,
-    binary_minus_exp,
-    minus_dot_exp,
-    actual_args_exp,
-    elems,
-    "if" exp "then" exp "else" exp,
-    "let" "(" pat ")" equal exp "in" exp
-    "let rec" function_def "in" exp,
-    simple_exp ".(" exp ")" "<-" exp,
-    exp_list,
-    "Array.create" simple_exp simple_exp,
-}
+pub Exp : () = {
 
-not_exp: () = {
-    not exp,
-}
- 
-minus_exp: () = {
-    minus exp,
-}
+  #[precedence(level="1")]
+    SimpleExp,
 
-binary_minus_exp: () = {
-    exp minus exp,
-}
-
-binary_op_exp: () = {
-    exp operator exp,
-}
-
-minus_dot_exp: () = {
-    exp "-." exp,
-}
-
-actual_args_exp: () = {
-    exp actual_args,
-}
-
-exp_list: () = {
-    exp ";" exp,
-}
-
-function_def : () = { 
-    identifier formal_args equal exp,
-}
+  #[precedence(level="2")] 
+   "not" Exp,
+   "Array.create" SimpleExp SimpleExp,
+   
+   // This is an argument list. Splitting this
+   // off into its own rule would be better but
+   // I can't resolve the conflicts
+  #[precedence(level="3")] 
+   Exp SimpleExp, 
 
 
-formal_args : () = { 
-    identifier formal_args,
-    identifier,
+  #[precedence(level="4")] #[assoc(side="right")]
+   "-" Exp,
+   "-." Exp,
+
+  #[precedence(level="5")] #[assoc(side="left")]
+   Exp "+" Exp,
+   Exp "-" Exp,
+   Exp "+." Exp,
+   Exp "-." Exp,
+
+  #[precedence(level="6")] #[assoc(side="left")]
+   Exp "<>" Exp,
+   Exp "=" Exp,
+   Exp "<" Exp,
+   Exp ">" Exp,
+   Exp "<=" Exp,
+   Exp ">=" Exp,
+
+    // These are multiple elements. Again, splitting
+    // this off would be better but...
+  #[precedence(level="7")]  #[assoc(side="left")]
+  Exp "," Exp, 
+
+  #[precedence(level="8")] 
+  "if" Exp "then" Exp "else" Exp,
+
+  #[precedence(level="9")] 
+  "let" Identifier "=" Exp "in" Exp,
+
+  #[precedence(level="10")] 
+  "let" "rec" FunctionDef "in" Exp,
+  "let" "(" Pat ")" "=" Exp "in" Exp,
+  SimpleExp "." "(" Exp ")" "<-" Exp,
+  #[assoc(side="right")]
+  Exp ";" Exp,
+
 }
 
-actual_args : () = {
-    actual_args simple_exp,
-    simple_exp, 
+ActualArgs : () = {
+    SimpleExp,
+    ActualArgs SimpleExp,
 }
 
-elems : () = {
-    elems "," exp,
-    exp "," exp,
+FunctionDef : () = { 
+    Identifier FormalArgs "=" Exp,
+}
+
+Pat : () = {
+    Pat "," Identifier,
+    Identifier "," Identifier,
 }
 
 
-pat : () = {
-    pat "," identifier,
-    identifier "," identifier,
+FormalArgs : () = { 
+    Identifier FormalArgs,
+    Identifier,
 }
+
 
 
 

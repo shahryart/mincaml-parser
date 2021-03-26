@@ -1,14 +1,28 @@
-extern crate pest;
 #[macro_use]
-extern crate pest_derive;
+extern crate lalrpop_util;
 
-use pest::Parser;
+lalrpop_mod!(pub mincaml);
 
-#[derive(Parser)]
-#[grammar = "mincaml.pest"]
-pub struct MinCamlParser;
+#[test]
+fn parse_expressions() {
+    assert!(mincaml::ExpParser::new().parse("true").is_ok());
+    assert!(mincaml::ExpParser::new().parse("false").is_ok());
+    assert!(mincaml::ExpParser::new().parse("13.23").is_ok());
+    assert!(mincaml::ExpParser::new().parse("13.23 + 2").is_ok());
+    assert!(mincaml::ExpParser::new()
+        .parse("this_might_be_an_identifier")
+        .is_ok());
 
-fn main() {
-    let successful_parse = MinCamlParser::parse(Rule::lparen, "(");
-    println!("{:?}", successful_parse);
+    assert!(mincaml::ExpParser::new().parse("13.23 + 2").is_ok());
+    assert!(mincaml::ExpParser::new()
+        .parse("if (true) then 2 else 3")
+        .is_ok());
+    assert!(mincaml::ExpParser::new()
+        .parse("let x = 2 in x + 2")
+        .is_ok());
+    assert!(mincaml::ExpParser::new()
+        .parse("let rec foo y = foo y + 2 in foo 2")
+        .is_ok());
 }
+
+fn main() {}
