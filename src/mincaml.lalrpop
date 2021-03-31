@@ -1,3 +1,6 @@
+use crate::ast::{Number, Exp, Operator};
+use std::str::FromStr;
+
 grammar;
 
 
@@ -6,111 +9,103 @@ pub file: () = {
 }
 
 
-Boolean: () = {
-    "true",
-    "false",
+Boolean: bool = {
+    "true" => true,
+    "false" => false,
 };
 
 
-Number : () = {
-    r"\d+(\.\d+)([eE][+-]?\d+)?",
-    r"\d+",
+Number : Number = {
+    r"\d+(\.\d+)([eE][+-]?\d+)?" => Number::Floating(f32::from_str(<>).unwrap()),
+    r"\d+" => Number::Integer(i32::from_str(<>).unwrap()),
 }
 
-Identifier : () = {
-    r"([_a-z]+)([0-9a-zA-z_]*)",
+Identifier : String = {
+    r"([_a-z]+)([0-9a-zA-z_]*)" => String::from(<>),
 }
 
-SimpleExp : () = {
-    "(" Exp ")",
-    "(" ")",
-    Boolean,
-    Number,
-    Identifier,
-    SimpleExp "." "(" Exp ")",
+SimpleExp : Box<Exp> = {
+    "(" <e:Exp> ")" => e,
+    "(" ")" => Box::new(Exp::Unit),
+    Boolean => Box::new(Exp::Bool(<>)),
+    Number => Box::new(Exp::NumberExp(<>)),
+    Identifier => Box::new(Exp::Identifier(<>)),
+    <l:SimpleExp> "." "(" <r:Exp> ")" => Box::new(Exp::Index(l, r)),
 }
 
-pub Exp : () = {
+pub Exp : Box<Exp> = {
 
   #[precedence(level="1")]
-    SimpleExp,
+    SimpleExp => <>,
 
   #[precedence(level="2")] 
-   "not" Exp,
-   "Array.create" SimpleExp SimpleExp,
+   "not" <e:Exp> => Box::new(Exp::UnaryExp(Operator::Not, e)),
+   "Array.create" <m:SimpleExp> <n:SimpleExp> => Box::new(Exp::ArrayCreate(m,n)),
    
    // This is an argument list. Splitting this
    // off into its own rule would be better but
    // I can't resolve the conflicts
   #[precedence(level="3")] 
-   Exp SimpleExp, 
+   <list:Exp> <e:SimpleExp> => Box::new(Exp::Args(list, e)), 
 
 
   #[precedence(level="4")] #[assoc(side="right")]
-   "-" Exp,
-   "-." Exp,
+   "-" <l:Exp> => Box::new(Exp::UnaryExp(Operator::Minus, l)),
+   "-." <l:Exp> => Box::new(Exp::UnaryExp(Operator::MinusDot, l)),
 
   #[precedence(level="5")] #[assoc(side="left")]
-   Exp "+" Exp,
-   Exp "-" Exp,
-   Exp "+." Exp,
-   Exp "-." Exp,
-
+ <l:Exp> "*." <r:Exp> => Box::new(Exp::BinaryExp(Operator::MulDot, l, r)),
+   <l:Exp> "/." <r:Exp> => Box::new(Exp::BinaryExp(Operator::DivDot, l, r)),
+   
   #[precedence(level="6")] #[assoc(side="left")]
-   Exp "<>" Exp,
-   Exp "=" Exp,
-   Exp "<" Exp,
-   Exp ">" Exp,
-   Exp "<=" Exp,
-   Exp ">=" Exp,
+   <l:Exp> "+" <r:Exp> => Box::new(Exp::BinaryExp(Operator::Plus, l, r)),
+   <l:Exp> "-" <r:Exp> => Box::new(Exp::BinaryExp(Operator::Minus, l, r)),
+   <l:Exp> "+." <r:Exp> => Box::new(Exp::BinaryExp(Operator::PlusDot, l, r)),
+   <l:Exp> "-." <r:Exp> => Box::new(Exp::BinaryExp(Operator::MinusDot, l, r)),
+
+  #[precedence(level="7")] #[assoc(side="left")]
+   <l:Exp> "<>" <r:Exp> => Box::new(Exp::BinaryExp(Operator::LesserGreater, l, r)),
+   <l:Exp> "=" <r:Exp> => Box::new(Exp::BinaryExp(Operator::Equal, l, r)),
+   <l:Exp> "<" <r:Exp> => Box::new(Exp::BinaryExp(Operator::Lesser, l, r)),
+   <l:Exp> ">" <r:Exp> => Box::new(Exp::BinaryExp(Operator::Greater, l, r)),
+   <l:Exp> "<=" <r:Exp> => Box::new(Exp::BinaryExp(Operator::LesserEqual, l, r)),
+   <l:Exp> ">=" <r:Exp> => Box::new(Exp::BinaryExp(Operator::GreaterEqual, l, r)),
 
     // These are multiple elements. Again, splitting
     // this off would be better but...
-  #[precedence(level="7")]  #[assoc(side="left")]
-  Exp "," Exp, 
-
-  #[precedence(level="8")] 
-  "if" Exp "then" Exp "else" Exp,
+  #[precedence(level="8")]  #[assoc(side="left")]
+  <e1:Exp> "," <e2:Exp> => Box::new(Exp::Elems(e1, e2)), 
 
   #[precedence(level="9")] 
-  "let" Identifier "=" Exp "in" Exp,
+  "if" <e1:Exp> "then" <e2:Exp> "else" <e3:Exp> => Box::new(Exp::IfExp(e1, e2, e3)),
 
   #[precedence(level="10")] 
-  "let" "rec" FunctionDef "in" Exp,
-  "let" "(" Pat ")" "=" Exp "in" Exp,
-  SimpleExp "." "(" Exp ")" "<-" Exp,
+  "let" <e1:Identifier> "=" <e2:Exp> "in" <e3:Exp> => Box::new(Exp::Eval(Box::new(Exp::Assignment(vec![e1], e2)), e3)),
+
+  #[precedence(level="11")] 
+  "let" "rec" <f:FunctionDef> "in" <e:Exp> => Box::new(Exp::Eval(f, e)),
+  "let" "(" <e1:Pat> ")" "=" <e2:Exp> "in" <e3:Exp> => Box::new(Exp::Eval(Box::new(Exp::Assignment(e1, e2)), e3)),
+  <e1:SimpleExp> "." "(" <e2:Exp> ")" "<-" <e3:Exp> => Box::new(Exp::ArrayAssignment(Box::new(Exp::Index(e1, e2)), e3)),
   #[assoc(side="right")]
-  Exp ";" Exp,
+  <e:Exp> ";" <l:Exp> => Box::new(Exp::ExpressionSequence(e, l)),
 
 }
 
-ActualArgs : () = {
-    SimpleExp,
-    ActualArgs SimpleExp,
-}
-
-FunctionDef : () = { 
-    Identifier FormalArgs "=" Exp,
-}
-
-Pat : () = {
-    Pat "," Identifier,
-    Identifier "," Identifier,
+pub FunctionDef : Box<Exp> = { 
+    <f:Identifier> <l:FormalArgs> "=" <e:Exp> => Box::new(Exp::FunctionDef(f, l, e)),
 }
 
 
-FormalArgs : () = { 
-    Identifier FormalArgs,
-    Identifier,
+// should be ok making these vectors immutable.
+Pat : Vec<String> = {
+    <l:Pat> "," <s:Identifier> => l.clone().into_iter().chain((vec![s]).into_iter()).collect(),
+    <l:Identifier> "," <r:Identifier> => vec![l, r],
 }
 
 
-
-
-
-
-
-
-
+FormalArgs : Vec<String> = { 
+    <l:FormalArgs> <s:Identifier>  => l.clone().into_iter().chain((vec![s]).into_iter()).collect(),
+    <s:Identifier> => vec![s],
+}
 
 
