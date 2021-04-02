@@ -38,9 +38,38 @@ fn parse_functiondef() {
     let rec make_adder x =
         let rec adder y = x + y in
             adder in
-                (make adder 3) 7"
+                (make_adder 3) 7"
         )
         .is_ok());
+    let assignment = mincaml::ExpParser::new()
+        .parse("let x = 2 in x + 3")
+        .unwrap();
+
+    assert_eq!(
+        &format!("{:?}", assignment),
+        "((let [\"x\"] = 2) in ((x) + 3))"
+    );
+
+    let multiple_variables_assignment = mincaml::ExpParser::new()
+        .parse("let (x, y) = 2 in x + 3")
+        .unwrap();
+
+    assert_eq!(
+        &format!("{:?}", multiple_variables_assignment),
+        "((let [\"x\", \"y\"] = 2) in ((x) + 3))"
+    );
+
+    let func_def = mincaml::ExpParser::new()
+        .parse(
+            "
+    let rec make_adder x =
+        let rec adder y = x + y in
+            adder in
+                (make_adder 3) 7",
+        )
+        .unwrap();
+
+    assert_eq!(&format!("{:?}", func_def), "((\"make_adder\"  ([\"x\"]) return (((\"adder\"  ([\"y\"]) return (((x) + (y))) ) in (adder))) ) in (((make_adder) 3) 7))");
 }
 
 fn main() {}
